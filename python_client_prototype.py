@@ -11,10 +11,35 @@ A basic demonstration of interacting with the Shakes & Fidget API
 """
 
 import base64
+import hashlib
 import requests
 from typing import Optional, Dict, Any
 from urllib.parse import urlencode
 import time
+
+# S&F password hashing constant
+HASH_CONST = "ahHoj2woo1eeChiech6ohphoB7Aithoh"
+
+
+def hash_password(password: str) -> str:
+    """
+    Hash password using S&F's SHA-1 + constant method
+
+    Args:
+        password: Plain text password
+
+    Returns:
+        SHA-1 hash in lowercase hexadecimal format
+    """
+    # Concatenate password with constant
+    salted = password + HASH_CONST
+
+    # Compute SHA-1 hash
+    hasher = hashlib.sha1()
+    hasher.update(salted.encode('utf-8'))
+
+    # Return lowercase hexadecimal digest
+    return hasher.hexdigest()
 
 
 class SFAPIClient:
@@ -111,22 +136,41 @@ class SFAPIClient:
 
     def login(self, username: str, password: str) -> bool:
         """
-        Attempt to login (you'll need to discover the actual login command)
+        Attempt to login to S&F server
 
-        This is a placeholder - you need to capture the actual login request
-        from browser DevTools to implement this correctly.
+        Args:
+            username: Player username
+            password: Plain text password (will be hashed automatically)
+
+        Returns:
+            True if login successful, False otherwise
         """
-        # Example - actual format may differ:
-        # params might be: username/password or could be a different encoding
-        encoded_params = self._encode_params(username, password)
+        # Hash the password using S&F's SHA-1 method
+        pw_hash = hash_password(password)
 
+        # Encode username and password hash as params
+        # Format: username/password_hash
+        encoded_params = self._encode_params(username, pw_hash)
+
+        print(f"[DEBUG] Hashed password: {pw_hash[:10]}...")
+        print(f"[DEBUG] Login params: {encoded_params}")
+
+        # Note: You need to capture the actual Login command from browser
+        # to confirm the exact request format and response structure
         response = self.send_command('Login', encoded_params, raw_params=True)
 
         # Parse session ID from response
-        if 'session_id' in response:  # Adjust based on actual response
+        # TODO: Adjust this based on actual API response structure
+        if 'session_id' in response:
             self.session_id = response['session_id']
+            print(f"[SUCCESS] Logged in! Session: {self.session_id}")
+            return True
+        elif 'sid' in response:
+            self.session_id = response['sid']
+            print(f"[SUCCESS] Logged in! Session: {self.session_id}")
             return True
 
+        print(f"[ERROR] Login failed: {response}")
         return False
 
     def get_player_info(self, player_name: str) -> Dict[str, Any]:
@@ -145,28 +189,60 @@ class SFAPIClient:
 # Example usage
 if __name__ == "__main__":
     print("S&F API Client Prototype")
-    print("=" * 50)
+    print("=" * 70)
     print()
 
-    # Example 1: Decode existing params
+    # Example 1: Password hashing
+    print("Example 1: Password Hashing")
+    print("-" * 70)
+    test_password = "mypassword123"
+    hashed = hash_password(test_password)
+    print(f"Password: {test_password}")
+    print(f"Hashed:   {hashed}")
+    print()
+
+    # Example 2: Decode existing params
+    print("Example 2: Decoding Parameters")
+    print("-" * 70)
     client = SFAPIClient("s17.sfgame.eu")
     decoded = client._decode_params("MS8w")
     print(f"Decoded 'MS8w': {decoded}")
     print()
 
-    # Example 2: Encode new params
+    # Example 3: Encode new params
+    print("Example 3: Encoding Parameters")
+    print("-" * 70)
     encoded = client._encode_params(1, 0)
     print(f"Encoded (1, 0): {encoded}")
     print()
 
-    # Example 3: With session (would need real session ID)
+    # Example 4: Login preparation (not actually executing)
+    print("Example 4: Login Request Preparation")
+    print("-" * 70)
+    username = "testuser"
+    password = "testpass"
+    pw_hash = hash_password(password)
+    login_params = client._encode_params(username, pw_hash)
+    print(f"Username: {username}")
+    print(f"Password: {password}")
+    print(f"PW Hash:  {pw_hash}")
+    print(f"Encoded:  {login_params}")
+    print()
+    print(f"Full URL would be:")
+    print(f"https://s17.sfgame.eu/cmd.php?req=Login&params={login_params}")
+    print()
+
+    # Example 5: With session (would need real session ID)
     # client.session_id = "0-83TiJwzb2r8lF4"
     # response = client.send_command('PlayerAttributIncrease', 'MS8w', raw_params=True)
     # print(f"Response: {response}")
 
-    print("\n⚠️  To use this properly:")
+    print("=" * 70)
+    print("\n⚠️  Next Steps:")
     print("1. Open game in browser with DevTools (F12)")
-    print("2. Capture actual API calls during gameplay")
-    print("3. Document command names and response formats")
-    print("4. Implement proper authentication flow")
-    print("5. Respect rate limits and ToS")
+    print("2. Capture the actual Login API call")
+    print("3. Verify the command name and param format")
+    print("4. Check the response structure for session ID")
+    print("5. Test with your credentials (at your own risk!)")
+    print("6. Document all API commands you find")
+    print("7. Respect rate limits and ToS")
